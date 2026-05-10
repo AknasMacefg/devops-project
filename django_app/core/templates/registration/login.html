@@ -1,0 +1,18 @@
+{% extends 'core/base.html' %}
+{% block title %}Reaction Guard | Login{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <div>
+        <p class="eyebrow">Welcome back</p>
+        <h1>Login</h1>
+        <p class="lead">Use your account to play, save results, and access the leaderboard.</p>
+    </div>
+    <form method="post" class="auth-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <label>{{ form.username.label_tag }}{{ form.username }}</label>
+        <label>{{ form.password.label_tag }}{{ form.password }}</label>
+        <button type="submit" class="button-link primary full-width">Login</button>
+    </form>
+</section>
+{% endblock %}

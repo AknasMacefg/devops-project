@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.pem
+updater_service/keys/
+signer_service/keys/
+release_signer_service/keys/
+django_app/keys/
+django_app/staticfiles/
+django_app/media/
+django_app/runtime/
+postgres_data/
+redis_data/
+.venv/

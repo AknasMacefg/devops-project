@@ -1,0 +1,51 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Reaction Guard | Game{% endblock %}
+{% block content %}
+<section class="game-layout">
+    <div class="game-panel">
+        <div class="section-head compact">
+            <div>
+                <p class="eyebrow">60-second run</p>
+                <h1>Click the circles before they disappear.</h1>
+            </div>
+            <button id="start-game" class="button-link primary" type="button">Start run</button>
+        </div>
+
+        <div class="hud-grid">
+            <div class="hud-card"><span>Time</span><strong id="time-left">60</strong></div>
+            <div class="hud-card"><span>Score</span><strong id="score">0</strong></div>
+            <div class="hud-card"><span>Hits</span><strong id="hits">0</strong></div>
+            <div class="hud-card"><span>Misses</span><strong id="misses">0</strong></div>
+            <div class="hud-card"><span>Accuracy</span><strong id="accuracy">0%</strong></div>
+            <div class="hud-card"><span>Best streak</span><strong id="best-streak">0</strong></div>
+        </div>
+
+        <div
+            id="game-arena"
+            class="game-arena"
+            data-submit-url="{{ submit_result_url }}"
+            data-leaderboard-url="{{ leaderboard_url }}"
+        >
+            <div class="arena-empty" id="arena-empty">
+                Press start to begin the game.
+            </div>
+        </div>
+    </div>
+
+    <aside class="summary-panel">
+        <h2>Analytics</h2>
+        <ul class="feature-list compact-list">
+            <li>Successful clicks</li>
+            <li>Misses</li>
+            <li>Accuracy</li>
+            <li>Average reaction time</li>
+            <li>Best streak</li>
+        </ul>
+        <div id="result-summary" class="summary-box">
+            Results will appear here after the round ends.
+        </div>
+    </aside>
+</section>
+<script src="{% static 'core/game.js' %}" defer></script>
+{% endblock %}

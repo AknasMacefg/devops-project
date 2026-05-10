@@ -1,0 +1,126 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-net
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - app-net
+
+  signer-service:
+    build:
+      context: ./signer_service
+    environment:
+      SIGNER_PORT: 8002
+      SIGNER_PRIVATE_KEY: /app/keys/private_key.pem
+      SIGNER_TOKEN: ${ONLINE_SIGNER_SHARED_TOKEN:-dev-signer-token}
+      SIGNER_KEY_ID: online-key-v1
+    volumes:
+      - ./signer_service/keys:/app/keys:ro
+    ports:
+      - "8002:8002"
+    networks:
+      - app-net
+
+  release-signer-service:
+    build:
+      context: ./signer_service
+    environment:
+      SIGNER_PORT: 8002
+      SIGNER_PRIVATE_KEY: /app/keys/private_key.pem
+      SIGNER_TOKEN: ${RELEASE_SIGNER_SHARED_TOKEN:-dev-release-signer-token}
+      SIGNER_KEY_ID: release-key-v1
+    volumes:
+      - ./release_signer_service/keys:/app/keys:ro
+    ports:
+      - "8003:8002"
+    networks:
+      - app-net
+
+  updater-service:
+    build:
+      context: ./updater_service
+    environment:
+      UPDATER_PUBLIC_HOST: ${UPDATER_PUBLIC_HOST:-updater-service:8001}
+      UPDATER_PORT: 8001
+      ONLINE_SIGNER_URL: http://signer-service:8002/sign
+      ONLINE_SIGNER_SHARED_TOKEN: ${ONLINE_SIGNER_SHARED_TOKEN:-dev-signer-token}
+      RELEASE_SIGNER_URL: http://release-signer-service:8002/sign
+      RELEASE_SIGNER_SHARED_TOKEN: ${RELEASE_SIGNER_SHARED_TOKEN:-dev-release-signer-token}
+    ports:
+      - "8001:8001"
+    depends_on:
+      - signer-service
+      - release-signer-service
+    networks:
+      - app-net
+
+  django-app:
+    build:
+      context: ./django_app
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-key}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1}
+      POSTGRES_DB: ${POSTGRES_DB:-reaction_game}
+      POSTGRES_USER: ${POSTGRES_USER:-reaction_game}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reaction_game}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/1
+      UPDATE_SERVICE_URL: http://updater-service:8001
+      UPDATE_ONLINE_PUBLIC_KEY_PATH: /app/keys/updater_public_key.pem
+      UPDATE_RELEASE_PUBLIC_KEY_PATH: /app/keys/release_signer_public_key.pem
+      UPDATE_REQUIRED_SIGNING_KEY_IDS: ${UPDATE_REQUIRED_SIGNING_KEY_IDS:-online-key-v1,release-key-v1}
+      UPDATE_POLICY_ALLOWED_MODULES: ${UPDATE_POLICY_ALLOWED_MODULES:-safe_update}
+      UPDATE_POLICY_ALLOW_COMPROMISED: ${UPDATE_POLICY_ALLOW_COMPROMISED:-0}
+    volumes:
+      - ./django_app:/app
+      - ./django_app/keys:/app/keys:ro
+      - django_static:/app/staticfiles
+      - django_media:/app/media
+    depends_on:
+      - postgres
+      - redis
+      - updater-service
+    networks:
+      - app-net
+
+  nginx:
+    build:
+      context: ./nginx
+    depends_on:
+      - django-app
+    ports:
+      - "8080:80"
+    volumes:
+      - django_static:/staticfiles:ro
+      - django_media:/media:ro
+    networks:
+      - app-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  django_static:
+  django_media:
+
+networks:
+  app-net:
+    driver: bridge

@@ -1,0 +1,20 @@
+{% extends 'core/base.html' %}
+{% block title %}Reaction Guard | Sign up{% endblock %}
+{% block content %}
+<section class="auth-card">
+    <div>
+        <p class="eyebrow">Create access</p>
+        <h1>Sign up</h1>
+        <p class="lead">Register once and your game results will be stored in PostgreSQL.</p>
+    </div>
+    <form method="post" class="auth-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <label>{{ form.username.label_tag }}{{ form.username }}</label>
+        <label>{{ form.email.label_tag }}{{ form.email }}</label>
+        <label>{{ form.password1.label_tag }}{{ form.password1 }}</label>
+        <label>{{ form.password2.label_tag }}{{ form.password2 }}</label>
+        <button type="submit" class="button-link primary full-width">Create account</button>
+    </form>
+</section>
+{% endblock %}
