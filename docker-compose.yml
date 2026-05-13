@@ -22,53 +22,49 @@ services:
     networks:
       - app-net
 
-  signer-service:
-    build:
-      context: ./signer_service
-    environment:
-      SIGNER_PORT: 8002
-      SIGNER_PRIVATE_KEY: /app/keys/private_key.pem
-      SIGNER_TOKEN: ${ONLINE_SIGNER_SHARED_TOKEN:-dev-signer-token}
-      SIGNER_KEY_ID: online-key-v1
-    volumes:
-      - ./signer_service/keys:/app/keys:ro
-    ports:
-      - "8002:8002"
-    networks:
-      - app-net
-
-  release-signer-service:
-    build:
-      context: ./signer_service
-    environment:
-      SIGNER_PORT: 8002
-      SIGNER_PRIVATE_KEY: /app/keys/private_key.pem
-      SIGNER_TOKEN: ${RELEASE_SIGNER_SHARED_TOKEN:-dev-release-signer-token}
-      SIGNER_KEY_ID: release-key-v1
-    volumes:
-      - ./release_signer_service/keys:/app/keys:ro
-    ports:
-      - "8003:8002"
-    networks:
-      - app-net
-
   updater-service:
     build:
       context: ./updater_service
     environment:
       UPDATER_PUBLIC_HOST: ${UPDATER_PUBLIC_HOST:-updater-service:8001}
       UPDATER_PORT: 8001
-      ONLINE_SIGNER_URL: http://signer-service:8002/sign
-      ONLINE_SIGNER_SHARED_TOKEN: ${ONLINE_SIGNER_SHARED_TOKEN:-dev-signer-token}
-      RELEASE_SIGNER_URL: http://release-signer-service:8002/sign
-      RELEASE_SIGNER_SHARED_TOKEN: ${RELEASE_SIGNER_SHARED_TOKEN:-dev-release-signer-token}
+      UPDATER_RSA_PRIVATE_KEY_PATH: ${UPDATER_RSA_PRIVATE_KEY_PATH:-/keys/updater_private.pem}
     ports:
       - "8001:8001"
-    depends_on:
-      - signer-service
-      - release-signer-service
+    volumes:
+      - ./keys:/keys:ro
     networks:
       - app-net
+
+  security-service:
+    build:
+      context: ./security_service
+    environment:
+      SECURITY_PORT: 8002
+      UPDATE_SERVICE_URL: http://updater-service:8001
+      SECURITY_RSA_PUBLIC_KEY_PATH: ${SECURITY_RSA_PUBLIC_KEY_PATH:-/keys/updater_public.pem}
+      SECURITY_RSA_VERIFY_REQUIRED: ${SECURITY_RSA_VERIFY_REQUIRED:-0}
+      STRICT_TIME_BOMB_CHECK: ${STRICT_TIME_BOMB_CHECK:-0}
+    ports:
+      - "8002:8002"
+    depends_on:
+      - updater-service
+    volumes:
+      - update_artifacts:/artifacts:rw
+      - ./keys:/keys:ro
+    networks:
+      - app-net
+      - sandbox-net
+
+  worker:
+    build:
+      context: ./worker_service
+    environment:
+      WORKER_PORT: 8003
+    networks:
+      - sandbox-net
+    volumes:
+      - update_artifacts:/artifacts:rw
 
   django-app:
     build:
@@ -78,27 +74,23 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1}
-      POSTGRES_DB: ${POSTGRES_DB:-reaction_game}
-      POSTGRES_USER: ${POSTGRES_USER:-reaction_game}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reaction_game}
+      POSTGRES_DB: demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_URL: redis://redis:6379/1
-      UPDATE_SERVICE_URL: http://updater-service:8001
-      UPDATE_ONLINE_PUBLIC_KEY_PATH: /app/keys/updater_public_key.pem
-      UPDATE_RELEASE_PUBLIC_KEY_PATH: /app/keys/release_signer_public_key.pem
-      UPDATE_REQUIRED_SIGNING_KEY_IDS: ${UPDATE_REQUIRED_SIGNING_KEY_IDS:-online-key-v1,release-key-v1}
+      UPDATE_SECURITY_SERVICE_URL: http://security-service:8002
       UPDATE_POLICY_ALLOWED_MODULES: ${UPDATE_POLICY_ALLOWED_MODULES:-safe_update}
       UPDATE_POLICY_ALLOW_COMPROMISED: ${UPDATE_POLICY_ALLOW_COMPROMISED:-0}
     volumes:
       - ./django_app:/app
-      - ./django_app/keys:/app/keys:ro
       - django_static:/app/staticfiles
       - django_media:/app/media
     depends_on:
       - postgres
       - redis
-      - updater-service
+      - security-service
     networks:
       - app-net
 
@@ -120,7 +112,11 @@ volumes:
   redis_data:
   django_static:
   django_media:
+  update_artifacts:
 
 networks:
   app-net:
     driver: bridge
+  sandbox-net:
+    driver: bridge
+    internal: true

@@ -28,9 +28,13 @@ class GameResult(models.Model):
 class SecuritySettings(models.Model):
     UPDATE_CHANNEL_SAFE = "safe"
     UPDATE_CHANNEL_COMPROMISED = "compromised"
+    UPDATE_CHANNEL_INVALID_MANIFEST = "invalid_manifest"
+    UPDATE_CHANNEL_MALICIOUS_VALID = "malicious_valid"
     UPDATE_CHANNEL_CHOICES = [
         (UPDATE_CHANNEL_SAFE, "Safe update"),
         (UPDATE_CHANNEL_COMPROMISED, "Compromised update"),
+        (UPDATE_CHANNEL_INVALID_MANIFEST, "Invalid manifest"),
+        (UPDATE_CHANNEL_MALICIOUS_VALID, "Valid manifest, malicious code"),
     ]
 
     STATUS_IDLE = "idle"
@@ -54,8 +58,6 @@ class SecuritySettings(models.Model):
     last_update_message = models.TextField(blank=True, default="")
     min_allowed_update_version = models.CharField(max_length=32, default="0.0.0")
     last_applied_update_version = models.CharField(max_length=32, default="0.0.0")
-    allowed_signing_key_ids = models.JSONField(default=default_allowed_signing_keys, blank=True)
-    revoked_signing_key_ids = models.JSONField(default=list, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

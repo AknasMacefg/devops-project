@@ -1,0 +1,298 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: devops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_DB } }
+            - name: POSTGRES_USER
+              valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD } }
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: devops-demo
+spec:
+  selector: { app: postgres }
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: devops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: redis }
+  template:
+    metadata:
+      labels: { app: redis }
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: devops-demo
+spec:
+  selector: { app: redis }
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: updater-service
+  namespace: devops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: updater-service }
+  template:
+    metadata:
+      labels: { app: updater-service }
+    spec:
+      containers:
+        - name: updater-service
+          image: updater-service:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: UPDATER_PORT
+              value: "8001"
+            - name: UPDATER_PUBLIC_HOST
+              value: updater-service:8001
+            - name: UPDATER_RSA_PRIVATE_KEY_PATH
+              valueFrom: { secretKeyRef: { name: app-secrets, key: UPDATER_RSA_PRIVATE_KEY_PATH } }
+          ports:
+            - containerPort: 8001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: updater-service
+  namespace: devops-demo
+spec:
+  selector: { app: updater-service }
+  ports:
+    - port: 8001
+      targetPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-service
+  namespace: devops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: security-service }
+  template:
+    metadata:
+      labels: { app: security-service }
+    spec:
+      containers:
+        - name: security-service
+          image: security-service:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SECURITY_PORT
+              value: "8002"
+            - name: UPDATE_SERVICE_URL
+              valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_SERVICE_URL } }
+            - name: SECURITY_RSA_PUBLIC_KEY_PATH
+              valueFrom: { secretKeyRef: { name: app-secrets, key: SECURITY_RSA_PUBLIC_KEY_PATH } }
+            - name: SECURITY_RSA_VERIFY_REQUIRED
+              valueFrom: { configMapKeyRef: { name: app-config, key: SECURITY_RSA_VERIFY_REQUIRED } }
+            - name: STRICT_TIME_BOMB_CHECK
+              valueFrom: { configMapKeyRef: { name: app-config, key: STRICT_TIME_BOMB_CHECK } }
+          ports:
+            - containerPort: 8002
+          volumeMounts:
+            - name: update-artifacts
+              mountPath: /artifacts
+      volumes:
+        - name: update-artifacts
+          persistentVolumeClaim:
+            claimName: update-artifacts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: security-service
+  namespace: devops-demo
+spec:
+  selector: { app: security-service }
+  ports:
+    - port: 8002
+      targetPort: 8002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: devops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: worker }
+  template:
+    metadata:
+      labels: { app: worker }
+    spec:
+      containers:
+        - name: worker
+          image: worker-service:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKER_PORT
+              value: "8003"
+          ports:
+            - containerPort: 8003
+          volumeMounts:
+            - name: update-artifacts
+              mountPath: /artifacts
+      volumes:
+        - name: update-artifacts
+          persistentVolumeClaim:
+            claimName: update-artifacts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: devops-demo
+spec:
+  selector: { app: worker }
+  ports:
+    - port: 8003
+      targetPort: 8003
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-app
+  namespace: devops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: django-app }
+  template:
+    metadata:
+      labels: { app: django-app }
+    spec:
+      containers:
+        - name: django-app
+          image: django-app:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DJANGO_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: app-secrets, key: DJANGO_SECRET_KEY } }
+            - name: DJANGO_DEBUG
+              value: "1"
+            - name: DJANGO_ALLOWED_HOSTS
+              value: "*"
+            - name: POSTGRES_DB
+              valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_DB } }
+            - name: POSTGRES_USER
+              valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD } }
+            - name: POSTGRES_HOST
+              valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_HOST } }
+            - name: POSTGRES_PORT
+              valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_PORT } }
+            - name: REDIS_URL
+              valueFrom: { configMapKeyRef: { name: app-config, key: REDIS_URL } }
+            - name: UPDATE_SECURITY_SERVICE_URL
+              valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_SECURITY_SERVICE_URL } }
+            - name: UPDATE_POLICY_ALLOWED_MODULES
+              valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_POLICY_ALLOWED_MODULES } }
+            - name: UPDATE_POLICY_ALLOW_COMPROMISED
+              valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_POLICY_ALLOW_COMPROMISED } }
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: django-app
+  namespace: devops-demo
+spec:
+  selector: { app: django-app }
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: devops-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: nginx }
+  template:
+    metadata:
+      labels: { app: nginx }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: devops-demo
+spec:
+  type: NodePort
+  selector: { app: nginx }
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080

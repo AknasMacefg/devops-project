@@ -94,16 +94,7 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "core:game"
 LOGOUT_REDIRECT_URL = "core:home"
 
-UPDATE_SERVICE_URL = os.getenv("UPDATE_SERVICE_URL", "http://updater-service:8001")
-UPDATE_SIGNING_PUBLIC_KEYS = {
-    "online-key-v1": os.getenv("UPDATE_ONLINE_PUBLIC_KEY_PATH", str(BASE_DIR / "keys" / "updater_public_key.pem")),
-    "release-key-v1": os.getenv("UPDATE_RELEASE_PUBLIC_KEY_PATH", str(BASE_DIR / "keys" / "release_signer_public_key.pem")),
-}
-UPDATE_REQUIRED_SIGNING_KEY_IDS = [
-    item.strip()
-    for item in os.getenv("UPDATE_REQUIRED_SIGNING_KEY_IDS", "online-key-v1,release-key-v1").split(",")
-    if item.strip()
-]
+UPDATE_SECURITY_SERVICE_URL = os.getenv("UPDATE_SECURITY_SERVICE_URL", "http://security-service:8002")
 UPDATE_RUNTIME_DIR = BASE_DIR / "runtime"
 UPDATE_POLICY_ALLOWED_MODULES = [
     item.strip() for item in os.getenv("UPDATE_POLICY_ALLOWED_MODULES", "safe_update").split(",") if item.strip()

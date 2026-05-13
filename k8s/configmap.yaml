@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: devops-demo
+data:
+  POSTGRES_DB: reaction_game
+  POSTGRES_USER: reaction_game
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  REDIS_URL: redis://redis:6379/1
+  UPDATE_SERVICE_URL: http://updater-service:8001
+  UPDATE_SECURITY_SERVICE_URL: http://security-service:8002
+  UPDATE_POLICY_ALLOWED_MODULES: safe_update
+  UPDATE_POLICY_ALLOW_COMPROMISED: "0"
+  SECURITY_RSA_VERIFY_REQUIRED: "0"
+  STRICT_TIME_BOMB_CHECK: "1"
