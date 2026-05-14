@@ -29,10 +29,15 @@ services:
       UPDATER_PUBLIC_HOST: ${UPDATER_PUBLIC_HOST:-updater-service:8001}
       UPDATER_PORT: 8001
       UPDATER_RSA_PRIVATE_KEY_PATH: ${UPDATER_RSA_PRIVATE_KEY_PATH:-/keys/updater_private.pem}
+      UPDATER_TLS_CERT_FILE: ${UPDATER_TLS_CERT_FILE:-/certs/updater/updater.crt}
+      UPDATER_TLS_KEY_FILE: ${UPDATER_TLS_KEY_FILE:-/certs/updater/updater.key}
+      UPDATER_TLS_CA_FILE: ${UPDATER_TLS_CA_FILE:-/certs/ca/ca.crt}
     ports:
       - "8001:8001"
     volumes:
       - ./keys:/keys:ro
+      - ./certs/updater:/certs/updater:ro
+      - ./certs/ca:/certs/ca:ro
     networks:
       - app-net
 
@@ -41,10 +46,13 @@ services:
       context: ./security_service
     environment:
       SECURITY_PORT: 8002
-      UPDATE_SERVICE_URL: http://updater-service:8001
+      UPDATE_SERVICE_URL: https://updater-service:8001
       SECURITY_RSA_PUBLIC_KEY_PATH: ${SECURITY_RSA_PUBLIC_KEY_PATH:-/keys/updater_public.pem}
       SECURITY_RSA_VERIFY_REQUIRED: ${SECURITY_RSA_VERIFY_REQUIRED:-0}
       STRICT_TIME_BOMB_CHECK: ${STRICT_TIME_BOMB_CHECK:-0}
+      SECURITY_TLS_CLIENT_CERT_FILE: ${SECURITY_TLS_CLIENT_CERT_FILE:-/certs/security/security.crt}
+      SECURITY_TLS_CLIENT_KEY_FILE: ${SECURITY_TLS_CLIENT_KEY_FILE:-/certs/security/security.key}
+      SECURITY_TLS_CA_FILE: ${SECURITY_TLS_CA_FILE:-/certs/ca/ca.crt}
     ports:
       - "8002:8002"
     depends_on:
@@ -52,6 +60,8 @@ services:
     volumes:
       - update_artifacts:/artifacts:rw
       - ./keys:/keys:ro
+      - ./certs/security:/certs/security:ro
+      - ./certs/ca:/certs/ca:ro
     networks:
       - app-net
       - sandbox-net

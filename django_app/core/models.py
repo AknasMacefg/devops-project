@@ -52,7 +52,7 @@ class SecuritySettings(models.Model):
 
     protection_enabled = models.BooleanField(default=True)
     update_channel = models.CharField(max_length=20, choices=UPDATE_CHANNEL_CHOICES, default=UPDATE_CHANNEL_SAFE)
-    updater_base_url = models.URLField(default="http://updater-service:8001")
+    updater_base_url = models.URLField(default="https://updater-service:8001")
     last_update_check_at = models.DateTimeField(null=True, blank=True)
     last_update_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_IDLE)
     last_update_message = models.TextField(blank=True, default="")

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import ssl
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -22,7 +23,22 @@ STRICT_TIME_BOMB_CHECK = os.getenv("STRICT_TIME_BOMB_CHECK", "1") == "1"
 
 APP_HOST = os.getenv("SECURITY_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("SECURITY_PORT", "8002"))
-DEFAULT_UPDATE_SERVICE_URL = os.getenv("UPDATE_SERVICE_URL", "http://updater-service:8001")
+DEFAULT_UPDATE_SERVICE_URL = os.getenv("UPDATE_SERVICE_URL", "https://updater-service:8001")
+TLS_CERT_FILE = os.getenv("SECURITY_TLS_CLIENT_CERT_FILE", "")
+TLS_KEY_FILE = os.getenv("SECURITY_TLS_CLIENT_KEY_FILE", "")
+TLS_CA_FILE = os.getenv("SECURITY_TLS_CA_FILE", "")
+
+
+def _build_tls_context() -> ssl.SSLContext | None:
+    if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
+        return None
+
+    context = ssl.create_default_context(cafile=TLS_CA_FILE)
+    context.load_cert_chain(certfile=TLS_CERT_FILE, keyfile=TLS_KEY_FILE)
+    return context
+
+
+TLS_CONTEXT = _build_tls_context()
 
 app = Flask(__name__)
 
@@ -32,12 +48,12 @@ def _sha256(content: str) -> str:
 
 
 def _download_json(url: str) -> dict:
-    with urllib_request.urlopen(url, timeout=10) as response:
+    with urllib_request.urlopen(url, timeout=10, context=TLS_CONTEXT) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
 def _download_text(url: str) -> str:
-    with urllib_request.urlopen(url, timeout=10) as response:
+    with urllib_request.urlopen(url, timeout=10, context=TLS_CONTEXT) as response:
         return response.read().decode("utf-8")
 
 

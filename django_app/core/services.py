@@ -51,6 +51,9 @@ def perform_update_check() -> UpdateCheckResult:
     mode = security_settings.update_channel
     security_service_url = getattr(settings, "UPDATE_SECURITY_SERVICE_URL", "http://security-service:8002").rstrip("/")
     evaluate_url = f"{security_service_url}/evaluate"
+    updater_base_url = security_settings.updater_base_url
+    if updater_base_url.startswith("http://"):
+        updater_base_url = "https://" + updater_base_url.removeprefix("http://")
 
     record_security_event(
         SecurityEvent.EVENT_UPDATE_CHECK,
@@ -63,7 +66,7 @@ def perform_update_check() -> UpdateCheckResult:
         payload = json.dumps(
             {
                 "mode": mode,
-                "update_service_url": security_settings.updater_base_url,
+                "update_service_url": updater_base_url,
                 "protection_enabled": security_settings.protection_enabled,
                 "allowed_modules": getattr(settings, "UPDATE_POLICY_ALLOWED_MODULES", ["safe_update"]),
                 "allow_compromised": getattr(settings, "UPDATE_POLICY_ALLOW_COMPROMISED", False),

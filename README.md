@@ -1,12 +1,12 @@
 # Reaction Game DevSecOps MVP
 
-Учебный MVP на Django для демонстрации DevOps и DevSecOps-подхода: мини-игра на реакцию, PostgreSQL, Redis, nginx, `updater-service`, `security-service` и изолированный `worker` для динамического анализа обновлений.
+Учебный MVP на Django для демонстрации DevOps и DevSecOps-подхода: мини-игра на реакцию, PostgreSQL, Redis, nginx, `updater-service`, `security-service` и изолированный `worker` для динамического анализа обновлений. Между `security-service` и `updater-service` включён mTLS.
 
 ## Архитектура
 
 - `django-app` — веб-приложение Django с регистрацией, входом, игрой, результатами и админкой.
-- `updater-service` — тренировочный сервер обновлений, поддерживает режимы `safe`, `invalid_manifest`, `malicious_valid` (и legacy `compromised`) и подписывает манифест RSA-ключом (если ключ подключен).
-- `security-service` — валидатор (статический анализ): загружает манифест/пакет, проверяет hash/policy/version/RSA, передаёт артефакт в песочницу.
+- `updater-service` — тренировочный сервер обновлений, поддерживает режимы `safe`, `invalid_manifest`, `malicious_valid` (и legacy `compromised`), подписывает манифест RSA-ключом и обслуживается по HTTPS с проверкой клиентского сертификата.
+- `security-service` — валидатор (статический анализ): загружает манифест/пакет по mTLS, проверяет hash/policy/version/RSA, передаёт артефакт в песочницу.
 - `worker` — песочница (динамический анализ): запускает модуль в ограниченном subprocess, возвращает pass/fail.
 - `postgres` — хранение результатов игры, security events и настроек защиты.
 - `redis` — cache для leaderboard и краткоживущих данных.
@@ -97,6 +97,27 @@ SECURITY_RSA_VERIFY_REQUIRED=1
 
 Перед запуском RSA-подписи создайте каталог `keys/` в корне проекта и сгенерируйте ключи командами выше.
 
+### Генерация TLS сертификатов для mTLS
+
+Если хотите включить mTLS между `security-service` и `updater-service`, сгенерируйте сертификаты через Python-скрипт:
+
+```bash
+python scripts/generate_mtls_certs.py
+```
+
+Скрипт создаст:
+- `certs/ca/ca.crt` и `certs/ca/ca.key`
+- `certs/updater/updater.crt` и `certs/updater/updater.key`
+- `certs/security/security.crt` и `certs/security/security.key`
+
+`updater-service` использует серверный сертификат и проверяет клиентский сертификат `security-service`, а `security-service` использует клиентский сертификат и проверяет сертификат `updater-service` через CA.
+
+Пример прямой проверки updater API с mTLS:
+
+```bash
+curl --cacert certs/ca/ca.crt --cert certs/security/security.crt --key certs/security/security.key https://localhost:8001/manifest?mode=safe
+```
+
 ## Anti time-bomb
 
 - `STRICT_TIME_BOMB_CHECK=1` включает статический детект подозрительных time-паттернов в `security-service`.
@@ -156,16 +177,16 @@ docker compose up --build
 ```
 
 2. Сценарий 1: хорошее обновление (`safe`)
-- `http://localhost:8001/manifest?mode=safe`;
+- `https://localhost:8001/manifest?mode=safe` (для прямого вызова нужны CA и client cert/key из `certs/`);
 - `Run update check` в Django admin;
 - убедитесь, что есть `update_applied`.
 
 3. Сценарий 2: неверный манифест (`invalid_manifest`)
-- `http://localhost:8001/manifest?mode=invalid_manifest`;
+- `https://localhost:8001/manifest?mode=invalid_manifest`;
 - `Run update check` в Django admin;
 - убедитесь, что защита блокирует обновление на статическом этапе и появляются `update_blocked`/`alert`.
 
 4. Сценарий 3: корректный манифест, но вредоносный код (`malicious_valid`)
-- `http://localhost:8001/manifest?mode=malicious_valid`;
+- `https://localhost:8001/manifest?mode=malicious_valid`;
 - `Run update check` в Django admin;
 - убедитесь, что обновление блокируется защитой (на static-check и/или в sandbox `worker`) и появляются `update_blocked`/`alert`.

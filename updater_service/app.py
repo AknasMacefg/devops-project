@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+import ssl
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request
@@ -15,6 +16,9 @@ COMPROMISED_MODULE = BASE_DIR / "compromised_update.py"
 APP_HOST = os.getenv("UPDATER_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("UPDATER_PORT", "8001"))
 RSA_PRIVATE_KEY_PATH = os.getenv("UPDATER_RSA_PRIVATE_KEY_PATH", "")
+TLS_CERT_FILE = os.getenv("UPDATER_TLS_CERT_FILE", "")
+TLS_KEY_FILE = os.getenv("UPDATER_TLS_KEY_FILE", "")
+TLS_CA_FILE = os.getenv("UPDATER_TLS_CA_FILE", "")
 
 app = Flask(__name__)
 
@@ -77,7 +81,7 @@ def manifest():
             "version": version,
             "sha256": payload_hash,
             "rsa_signature": rsa_signature,
-            "module_url": f"http://{os.getenv('UPDATER_PUBLIC_HOST', 'updater-service:8001')}/packages/{package_module_name}.py",
+            "module_url": f"https://{os.getenv('UPDATER_PUBLIC_HOST', 'updater-service:8001')}/packages/{package_module_name}.py",
             "mode": mode,
         }
     )
@@ -91,5 +95,16 @@ def package(module_name: str):
     return Response(path.read_text(encoding="utf-8"), mimetype="text/x-python")
 
 
+def _build_tls_context() -> ssl.SSLContext | None:
+    if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
+        return None
+
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain(certfile=TLS_CERT_FILE, keyfile=TLS_KEY_FILE)
+    context.load_verify_locations(cafile=TLS_CA_FILE)
+    context.verify_mode = ssl.CERT_REQUIRED
+    return context
+
+
 if __name__ == "__main__":
-    app.run(host=APP_HOST, port=APP_PORT)
+    app.run(host=APP_HOST, port=APP_PORT, ssl_context=_build_tls_context())

@@ -14,3 +14,5 @@ django_app/runtime/
 postgres_data/
 redis_data/
 .venv/
+*.crt
+*.key
