@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import os
 import ssl
 from pathlib import Path
@@ -9,6 +10,10 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, request
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 SAFE_MODULE = BASE_DIR / "safe_update.py"
@@ -29,11 +34,28 @@ def _sha256(content: str) -> str:
 
 
 def _load_module_source(mode: str) -> tuple[str, str, str]:
-    if mode in {"compromised", "malicious_valid"}:
+    """
+    Load module source based on mode:
+    - safe: safe_update.py, version 1.0.0
+    - compromised: compromised_update.py, version 2.0.0, mode=compromised
+    - invalid_manifest: compromised_update.py, version 1.0.0 (will get wrong hash)
+    - malicious_valid: compromised_update.py named as safe_update, version 1.1.0
+    """
+    if mode == "compromised":
         module_path = COMPROMISED_MODULE
-        module_name = "compromised_update" if mode == "compromised" else "safe_update"
-        version = "2.0.0" if mode == "compromised" else "1.1.0"
-    else:
+        module_name = "compromised_update"
+        version = "2.0.0"
+    elif mode == "invalid_manifest":
+        # Send compromised code with tampered manifest
+        module_path = COMPROMISED_MODULE
+        module_name = "safe_update"  # Claim it's safe to fool policy
+        version = "1.0.0"
+    elif mode == "malicious_valid":
+        # Send compromised code with correct hash but claiming to be safe_update
+        module_path = COMPROMISED_MODULE
+        module_name = "safe_update"
+        version = "1.1.0"
+    else:  # safe or default
         module_path = SAFE_MODULE
         module_name = "safe_update"
         version = "1.0.0"
@@ -69,12 +91,24 @@ def manifest():
     mode = request.args.get("mode", "safe")
     module_name, version, source = _load_module_source(mode)
     payload_hash = _sha256(source)
+    
+    # For invalid_manifest, deliberately publish an incorrect hash
     if mode == "invalid_manifest":
-        # Deliberately publish an incorrect hash while keeping signature over that manifest.
         payload_hash = _sha256(source + "\n# tampered-manifest")
+    
     rsa_signature = _sign_manifest(module_name, version, payload_hash, mode)
 
-    package_module_name = "compromised_update" if mode == "malicious_valid" else module_name
+    # Determine which actual module file to serve
+    # For compromised and invalid_manifest, serve compromised_update.py
+    # For malicious_valid, serve compromised_update.py (but manifest claims it's safe_update)
+    if mode in {"compromised", "invalid_manifest", "malicious_valid"}:
+        package_module_name = "compromised_update"
+    else:
+        package_module_name = "safe_update"
+    
+    # Use HTTP or HTTPS based on mTLS enablement
+    protocol = "https" if MTLS_ENABLED else "http"
+    host = os.getenv('UPDATER_PUBLIC_HOST', 'updater-service:8001')
 
     return jsonify(
         {
@@ -82,7 +116,7 @@ def manifest():
             "version": version,
             "sha256": payload_hash,
             "rsa_signature": rsa_signature,
-            "module_url": f"https://{os.getenv('UPDATER_PUBLIC_HOST', 'updater-service:8001')}/packages/{package_module_name}.py",
+            "module_url": f"{protocol}://{host}/packages/{package_module_name}.py",
             "mode": mode,
         }
     )
@@ -97,17 +131,12 @@ def package(module_name: str):
 
 
 def _build_tls_context() -> ssl.SSLContext | None:
-    if not MTLS_ENABLED:
-        return None
-    if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
-        raise RuntimeError("mTLS enabled, but certificate paths are not configured")
-
-    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.load_cert_chain(certfile=TLS_CERT_FILE, keyfile=TLS_KEY_FILE)
-    context.load_verify_locations(cafile=TLS_CA_FILE)
-    context.verify_mode = ssl.CERT_REQUIRED
-    return context
+    # TLS context building is now handled by gunicorn via entrypoint.sh
+    # This function is kept for reference only
+    return None
 
 
 if __name__ == "__main__":
-    app.run(host=APP_HOST, port=APP_PORT, ssl_context=_build_tls_context())
+    # Note: This is only used for local development with `python app.py`
+    # In production, use gunicorn via entrypoint.sh which handles mTLS
+    app.run(host=APP_HOST, port=APP_PORT)

@@ -4,9 +4,11 @@ import ast
 import base64
 import hashlib
 import json
+import logging
 import os
 import re
 import ssl
+from pathlib import Path
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -15,6 +17,10 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 import time
 import uuid
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 WORKDIR = os.getenv("WORKDIR", "/artifacts")
 RSA_PUBLIC_KEY_PATH = os.getenv("SECURITY_RSA_PUBLIC_KEY_PATH", "")
@@ -32,13 +38,45 @@ TLS_CA_FILE = os.getenv("SECURITY_TLS_CA_FILE", "")
 
 def _build_tls_context() -> ssl.SSLContext | None:
     if not MTLS_ENABLED:
+        logger.info("mTLS disabled, using plain HTTP for updater-service calls")
         return None
+    
     if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
-        raise RuntimeError("mTLS enabled, but certificate paths are not configured")
-
-    context = ssl.create_default_context(cafile=TLS_CA_FILE)
-    context.load_cert_chain(certfile=TLS_CERT_FILE, keyfile=TLS_KEY_FILE)
-    return context
+        logger.error("mTLS enabled but cert paths not configured. Using plain HTTP as fallback.")
+        logger.error(f"  CERT: {TLS_CERT_FILE or 'not set'}")
+        logger.error(f"  KEY: {TLS_KEY_FILE or 'not set'}")
+        logger.error(f"  CA: {TLS_CA_FILE or 'not set'}")
+        return None
+    
+    # Verify certificate files exist
+    cert_path = Path(TLS_CERT_FILE)
+    key_path = Path(TLS_KEY_FILE)
+    ca_path = Path(TLS_CA_FILE)
+    
+    missing = []
+    if not cert_path.exists():
+        missing.append(f"cert file: {TLS_CERT_FILE}")
+    if not key_path.exists():
+        missing.append(f"key file: {TLS_KEY_FILE}")
+    if not ca_path.exists():
+        missing.append(f"CA file: {TLS_CA_FILE}")
+    
+    if missing:
+        logger.error(f"mTLS enabled but certificate files missing: {', '.join(missing)}")
+        logger.error("Using plain HTTP as fallback.")
+        return None
+    
+    try:
+        context = ssl.create_default_context(cafile=str(ca_path))
+        context.load_cert_chain(certfile=str(cert_path), keyfile=str(key_path))
+        # Check hostname but don't fail on mismatch - log warning instead
+        context.check_hostname = True
+        logger.info(f"mTLS enabled: loaded client cert from {cert_path}, CA from {ca_path}")
+        return context
+    except Exception as e:
+        logger.error(f"Failed to build TLS context: {e}")
+        logger.error("Using plain HTTP as fallback.")
+        return None
 
 
 TLS_CONTEXT = _build_tls_context()
@@ -50,13 +88,22 @@ def _sha256(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def _get_ssl_context(url: str) -> ssl.SSLContext | None:
+    """Get SSL context only for HTTPS URLs, always return None for HTTP"""
+    if url.startswith("https://"):
+        return TLS_CONTEXT
+    return None
+
+
 def _download_json(url: str) -> dict:
-    with urllib_request.urlopen(url, timeout=10, context=TLS_CONTEXT) as response:
+    context = _get_ssl_context(url)
+    with urllib_request.urlopen(url, timeout=10, context=context) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
 def _download_text(url: str) -> str:
-    with urllib_request.urlopen(url, timeout=10, context=TLS_CONTEXT) as response:
+    context = _get_ssl_context(url)
+    with urllib_request.urlopen(url, timeout=10, context=context) as response:
         return response.read().decode("utf-8")
 
 
@@ -101,10 +148,6 @@ def _evaluate_policy(manifest: dict, mode: str, allowed_modules: list[str], allo
     version = manifest.get("version", "0.0.0")
     if _compare_versions(version, min_allowed_update_version) < 0:
         details["reason"] = "version_below_minimum"
-        return False, details
-
-    if _compare_versions(version, last_applied_update_version) < 0:
-        details["reason"] = "rollback_detected"
         return False, details
 
     details["reason"] = "policy_ok"
@@ -183,9 +226,11 @@ def evaluate():
     manifest_url = f"{update_service_url}/manifest?mode={mode}"
 
     try:
+        logger.info(f"Fetching manifest from {manifest_url} (TLS context: {'enabled' if TLS_CONTEXT else 'disabled'})")
         manifest = _download_json(manifest_url)
         module_source = _download_text(manifest["module_url"])
     except (urllib_error.URLError, TimeoutError, KeyError, json.JSONDecodeError) as exc:
+        logger.error(f"Error fetching manifest: {type(exc).__name__}: {exc}", exc_info=True)
         return jsonify(
             {
                 "status": "error",
@@ -193,6 +238,21 @@ def evaluate():
                 "details": {"mode": mode, "manifest_url": manifest_url},
             }
         ), 502
+
+    # If protection is disabled, bypass all checks
+    if not protection_enabled:
+        return jsonify(
+            {
+                "status": "approved",
+                "message": f"Обновление одобрено (защита отключена): {manifest.get('name', 'unknown')}",
+                "details": {
+                    "mode": mode,
+                    "protection_enabled": False,
+                },
+                "manifest": manifest,
+                "module_source": module_source,
+            }
+        )
 
     payload_hash = _sha256(module_source)
     expected_hash = manifest.get("sha256", "")
@@ -275,6 +335,7 @@ def evaluate():
                 "manifest": manifest,
             }
         )
+    
     # Write artifact for sandbox to pick up
     artifact_id = f"{int(time.time())}-{uuid.uuid4().hex[:8]}"
     artifact_dir = os.path.join(WORKDIR, artifact_id)

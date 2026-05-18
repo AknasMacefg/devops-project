@@ -11,5 +11,7 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
+RUN chmod +x /app/run.py
+
 EXPOSE 8002
-CMD ["gunicorn", "--bind", "0.0.0.0:8002", "app:app"]
+CMD ["python3", "/app/run.py"]

@@ -3,26 +3,11 @@
 {% block content %}
 <section class="hero-grid">
     <div>
-        <p class="eyebrow">Безопасная мини-игра для курса по DevOps</p>
-        <h1>Реагируйте быстро, набирайте очки и защищайте приложение от вредоносных обновлений.</h1>
-        <p class="lead">
-            Приложение сочетает 60-секундную игру на реакцию и безопасную симуляцию скомпрометированного канала обновлений.
-            Оно демонстрирует проверку обновлений на стороне приложения, сохранение данных, таблицу лидеров и журналирование событий безопасности.
-        </p>
         <div class="cta-row">
             <a class="button-link primary" href="{% url 'core:game' %}">Начать игру</a>
             <a class="button-link secondary" href="{% url 'core:leaderboard' %}">Открыть таблицу лидеров</a>
         </div>
     </div>
-    <aside class="hero-panel">
-        <h2>Что защищается</h2>
-        <ul class="feature-list">
-            <li>Проверка hash перед применением обновления</li>
-            <li>Проверки anti-rollback и policy на стороне приложения</li>
-            <li>Запись тревог при заблокированных попытках обновления</li>
-            <li>Результаты в PostgreSQL и кэш Redis</li>
-        </ul>
-    </aside>
 </section>
 
 <section class="stats-grid">
@@ -43,7 +28,6 @@
 <section>
     <div class="section-head">
         <h2>Лучшие попытки</h2>
-        <a href="{% url 'core:leaderboard' %}">Открыть полную таблицу лидеров</a>
     </div>
     <div class="table-card">
         <table>

@@ -20,6 +20,8 @@ class GameResult(models.Model):
 
     class Meta:
         ordering = ["-score", "-accuracy", "average_reaction_ms", "-created_at"]
+        verbose_name = "Результат игры"
+        verbose_name_plural = "Результаты игр"
 
     def __str__(self) -> str:
         return f"{self.user.username} - {self.score}"
@@ -108,6 +110,8 @@ class SecurityEvent(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = "Событие безопасности"
+        verbose_name_plural = "События безопасности"
 
     def __str__(self) -> str:
         return f"{self.get_event_type_display()} - {self.message}"

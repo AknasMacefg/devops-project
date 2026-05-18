@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 from flask import Flask, jsonify, request
 
@@ -37,6 +38,12 @@ def apply_update():
         with open(module_path, "w", encoding="utf-8") as fh:
             fh.write(module_source)
 
+        leak_file = Path("/artifacts/simulated_leak.txt")
+        try:
+            leak_file.unlink()
+        except FileNotFoundError:
+            pass
+
         # Runner code executed in subprocess to allow resource limits
         manifest_json = json.dumps(manifest)
         runner_code = f"""
@@ -44,6 +51,7 @@ import json
 import logging
 import resource
 import sys
+from pathlib import Path
 try:
     resource.setrlimit(resource.RLIMIT_CPU, (2, 2))
     resource.setrlimit(resource.RLIMIT_AS, (200 * 1024 * 1024, 200 * 1024 * 1024))
@@ -53,13 +61,17 @@ logger = logging.getLogger('worker-sandbox')
 def record_event(*args, **kwargs):
     return None
 ns = {{}}
-with open({json.dumps(module_path)!r}, 'r', encoding='utf-8') as f:
+with open({module_path!r}, 'r', encoding='utf-8') as f:
     code = f.read()
 exec(code, ns)
 if 'apply_update' in ns:
     try:
-        result = ns['apply_update']({{'logger': logger, 'record_event': record_event, 'manifest': {manifest_json}, 'runtime_dir': '/artifacts', 'leak_file': '/artifacts/simulated_leak.txt'}})
-        print(json.dumps({{'status': 'ok', 'result': result}}))
+        leak_file = Path('/artifacts/simulated_leak.txt')
+        result = ns['apply_update']({{'logger': logger, 'record_event': record_event, 'manifest': {manifest_json}, 'runtime_dir': '/artifacts', 'leak_file': str(leak_file)}})
+        if leak_file.exists():
+            print(json.dumps({{'status': 'fail', 'message': 'leak_file_created'}}))
+        else:
+            print(json.dumps({{'status': 'ok', 'result': result}}))
     except Exception as e:
         print(json.dumps({{'status': 'error', 'message': str(e)}}))
 else:
@@ -107,6 +119,12 @@ def test_artifact():
     
     logger.info(f"[/test] module.py found, size={os.path.getsize(module_path)} bytes")
 
+    leak_file = Path("/artifacts/simulated_leak.txt")
+    try:
+        leak_file.unlink()
+    except FileNotFoundError:
+        pass
+
     # Execute module in isolated subprocess with limits
     manifest_json = json.dumps(manifest)
     runner_code = f"""
@@ -116,9 +134,10 @@ import os
 import resource
 import sys
 import time as _time
+from pathlib import Path
 
 print('[runner] START', flush=True)
-print('[runner] module_path={module_path!r}', flush=True)
+print('[runner] module_path=' + {json.dumps(module_path)}, flush=True)
 
 try:
     resource.setrlimit(resource.RLIMIT_CPU, (2, 2))
@@ -141,7 +160,7 @@ def record_event(*args, **kwargs):
 print('[runner] loading module...', flush=True)
 ns = {{}}
 try:
-    with open({module_path!r}, 'r', encoding='utf-8') as f:
+    with open({json.dumps(module_path)}, 'r', encoding='utf-8') as f:
         code = f.read()
     print(f'[runner] code loaded, length={{len(code)}}', flush=True)
     exec(code, ns)
@@ -155,11 +174,16 @@ if 'apply_update' in ns:
     print('[runner] found apply_update, calling it...', flush=True)
     try:
         # Provide the same shape of context that application code expects
-        ctx = {{'logger': logger, 'record_event': record_event, 'manifest': {manifest_json}, 'runtime_dir': '/artifacts', 'leak_file': '/artifacts/simulated_leak.txt', 'module_path': {module_path!r}}}
+        ctx = {{'logger': logger, 'record_event': record_event, 'manifest': {manifest_json}, 'runtime_dir': '/artifacts', 'leak_file': '/artifacts/simulated_leak.txt', 'module_path': {json.dumps(module_path)}}}
         print(f'[runner] context keys={{list(ctx.keys())}}', flush=True)
         result = ns['apply_update'](ctx)
         print(f'[runner] apply_update returned: {{result}}', flush=True)
-        print(json.dumps({{'status':'pass'}}))
+        leak_file = Path('/artifacts/simulated_leak.txt')
+        if leak_file.exists():
+            print('[runner] leak file detected', flush=True)
+            print(json.dumps({{'status':'fail','message':'leak_file_created'}}))
+        else:
+            print(json.dumps({{'status':'pass'}}))
     except Exception as e:
         print(f'[runner] ERROR in apply_update: {{type(e).__name__}}: {{e}}', flush=True)
         import traceback

@@ -80,7 +80,7 @@ def perform_update_check() -> UpdateCheckResult:
         SecurityEvent.EVENT_UPDATE_CHECK,
         SecurityEvent.SEVERITY_LOW,
         "Проверка обновления начата",
-        {"mode": mode, "security_service_url": evaluate_url},
+        {"mode": mode, "security_service_url": evaluate_url, "protection_enabled": security_settings.protection_enabled},
     )
 
     try:
@@ -158,6 +158,35 @@ def perform_update_check() -> UpdateCheckResult:
     runtime_dir.mkdir(parents=True, exist_ok=True)
     module_path = runtime_dir / f"{module_name}.py"
     module_path.write_text(module_source, encoding="utf-8")
+
+    # Load and execute the update module
+    try:
+        module, loaded_module_path = _load_module_from_source(module_name, module_source)
+        if hasattr(module, "apply_update"):
+            logger.info(f"Executing apply_update from {module_name}")
+            context = {
+                "logger": logger,
+                "record_event": record_security_event,
+                "manifest": manifest,
+                "runtime_dir": str(runtime_dir),
+                "module_path": str(loaded_module_path),
+                "leak_file": str(runtime_dir / "simulated_leak.txt"),
+            }
+            apply_update_result = module.apply_update(context)
+            logger.info(f"apply_update completed: {apply_update_result}")
+    except Exception as exc:
+        logger.error(f"Error executing update module: {exc}", exc_info=True)
+        security_settings.last_update_status = SecuritySettings.STATUS_ERROR
+        security_settings.last_update_message = f"Ошибка при выполнении модуля: {exc}"
+        security_settings.last_update_check_at = timezone.now()
+        security_settings.save(update_fields=["last_update_status", "last_update_message", "last_update_check_at", "updated_at"])
+        record_security_event(
+            SecurityEvent.EVENT_WARNING,
+            SecurityEvent.SEVERITY_MEDIUM,
+            f"Ошибка при выполнении обновления: {exc}",
+            {"mode": mode, "module": module_name},
+        )
+        return UpdateCheckResult(status=SecuritySettings.STATUS_ERROR, message=f"Ошибка выполнения модуля: {exc}", details={"mode": mode})
 
     message = f"Обновление применено: {manifest.get('name', 'unknown')}"
     security_settings.last_update_status = SecuritySettings.STATUS_APPLIED
