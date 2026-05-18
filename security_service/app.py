@@ -20,18 +20,21 @@ WORKDIR = os.getenv("WORKDIR", "/artifacts")
 RSA_PUBLIC_KEY_PATH = os.getenv("SECURITY_RSA_PUBLIC_KEY_PATH", "")
 RSA_VERIFY_REQUIRED = os.getenv("SECURITY_RSA_VERIFY_REQUIRED", "0") == "1"
 STRICT_TIME_BOMB_CHECK = os.getenv("STRICT_TIME_BOMB_CHECK", "1") == "1"
+MTLS_ENABLED = os.getenv("SECURITY_MTLS_ENABLED", "0") == "1"
 
 APP_HOST = os.getenv("SECURITY_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("SECURITY_PORT", "8002"))
-DEFAULT_UPDATE_SERVICE_URL = os.getenv("UPDATE_SERVICE_URL", "https://updater-service:8001")
+DEFAULT_UPDATE_SERVICE_URL = os.getenv("UPDATE_SERVICE_URL", "http://updater-service:8001")
 TLS_CERT_FILE = os.getenv("SECURITY_TLS_CLIENT_CERT_FILE", "")
 TLS_KEY_FILE = os.getenv("SECURITY_TLS_CLIENT_KEY_FILE", "")
 TLS_CA_FILE = os.getenv("SECURITY_TLS_CA_FILE", "")
 
 
 def _build_tls_context() -> ssl.SSLContext | None:
-    if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
+    if not MTLS_ENABLED:
         return None
+    if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
+        raise RuntimeError("mTLS enabled, but certificate paths are not configured")
 
     context = ssl.create_default_context(cafile=TLS_CA_FILE)
     context.load_cert_chain(certfile=TLS_CERT_FILE, keyfile=TLS_KEY_FILE)
@@ -167,6 +170,10 @@ def evaluate():
     payload = request.get_json(silent=True) or {}
     mode = payload.get("mode", "safe")
     update_service_url = payload.get("update_service_url", DEFAULT_UPDATE_SERVICE_URL).rstrip("/")
+    if MTLS_ENABLED and update_service_url.startswith("http://"):
+        update_service_url = "https://" + update_service_url.removeprefix("http://")
+    if not MTLS_ENABLED and update_service_url.startswith("https://"):
+        update_service_url = "http://" + update_service_url.removeprefix("https://")
     allowed_modules = payload.get("allowed_modules", ["safe_update"])
     allow_compromised = bool(payload.get("allow_compromised", False))
     min_allowed_update_version = payload.get("min_allowed_update_version", "0.0.0")
@@ -182,7 +189,7 @@ def evaluate():
         return jsonify(
             {
                 "status": "error",
-                "message": f"Update check failed: {exc}",
+                "message": f"Проверка обновления не удалась: {exc}",
                 "details": {"mode": mode, "manifest_url": manifest_url},
             }
         ), 502
@@ -204,7 +211,7 @@ def evaluate():
         return jsonify(
             {
                 "status": "blocked",
-                "message": f"Blocked update by policy {manifest.get('name', 'unknown')}",
+                "message": f"Обновление заблокировано политикой: {manifest.get('name', 'unknown')}",
                 "details": {
                     "mode": mode,
                     "policy_ok": False,
@@ -221,7 +228,7 @@ def evaluate():
         return jsonify(
             {
                 "status": "blocked",
-                "message": f"Blocked compromised update {manifest.get('name', 'unknown')}",
+                "message": f"Заблокировано скомпрометированное обновление: {manifest.get('name', 'unknown')}",
                 "details": {
                     "mode": mode,
                     "policy_ok": True,
@@ -237,7 +244,7 @@ def evaluate():
         return jsonify(
             {
                 "status": "blocked",
-                "message": f"Blocked update with invalid RSA signature {manifest.get('name', 'unknown')}",
+                "message": f"Заблокировано обновление с неверной RSA-подписью: {manifest.get('name', 'unknown')}",
                 "details": {
                     "mode": mode,
                     "policy_ok": True,
@@ -255,7 +262,7 @@ def evaluate():
         return jsonify(
             {
                 "status": "blocked",
-                "message": f"Blocked potential time-bomb update {manifest.get('name', 'unknown')}",
+                "message": f"Заблокировано потенциально опасное обновление: {manifest.get('name', 'unknown')}",
                 "details": {
                     "mode": mode,
                     "policy_ok": True,
@@ -278,7 +285,7 @@ def evaluate():
         with open(os.path.join(artifact_dir, "manifest.json"), "w", encoding="utf-8") as fh:
             json.dump(manifest, fh)
     except Exception as exc:
-        return jsonify({"status": "error", "message": f"artifact write failed: {exc}"}), 500
+        return jsonify({"status": "error", "message": f"Не удалось записать артефакт: {exc}"}), 500
 
     # Invoke sandbox worker on internal sandbox-net
     worker_url = f"http://worker:8003/test"
@@ -290,14 +297,14 @@ def evaluate():
     except Exception as exc:
         return jsonify({
             "status": "error",
-            "message": f"sandbox invocation failed: {exc}",
+            "message": f"Не удалось запустить песочницу: {exc}",
             "details": {"artifact_dir": artifact_dir},
         }), 502
 
     if worker_result.get("status") != "pass":
         return jsonify({
             "status": "blocked",
-            "message": f"Sandbox tests failed for {manifest.get('name', 'unknown')}",
+            "message": f"Песочница не прошла проверку: {manifest.get('name', 'unknown')}",
             "details": {
                 "mode": mode,
                 "policy_ok": True,
@@ -311,7 +318,7 @@ def evaluate():
     return jsonify(
         {
             "status": "approved",
-            "message": f"Approved update {manifest.get('name', 'unknown')} (static+dynamic checks passed)",
+            "message": f"Обновление одобрено: {manifest.get('name', 'unknown')} (статическая и динамическая проверки пройдены)",
             "details": {
                 "mode": mode,
                 "policy_ok": True,

@@ -5,18 +5,15 @@ import logging
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import AuthenticationForm
 from django.core.cache import cache
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
-from django.template.response import TemplateResponse
-from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from .forms import SignUpForm
-from .models import GameResult, SecuritySettings
+from .models import GameResult
 from .services import record_security_event
 
 
@@ -43,7 +40,7 @@ def signup_view(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(request, "Account created. You are now logged in.")
+            messages.success(request, "Аккаунт создан. Вы вошли в систему.")
             return redirect("core:game")
         else:
             logger = logging.getLogger(__name__)
@@ -51,8 +48,8 @@ def signup_view(request):
                 errors = form.errors.as_json()
             except Exception:
                 errors = str(form.errors)
-            logger.warning("Signup form invalid: %s", errors)
-            messages.error(request, "Error creating account: " + "; ".join(form.errors.get_json_data(escape_html=True).get(field, [{"message": "Unknown error"}])[0]["message"] for field in form.errors))
+            logger.warning("Форма регистрации заполнена некорректно: %s", errors)
+            messages.error(request, "Ошибка при создании аккаунта: " + "; ".join(form.errors.get_json_data(escape_html=True).get(field, [{"message": "Неизвестная ошибка"}])[0]["message"] for field in form.errors))
     else:
         form = SignUpForm()
     return render(request, "registration/signup.html", {"form": form})
@@ -60,12 +57,10 @@ def signup_view(request):
 
 @login_required
 def game_view(request):
-    security_settings = SecuritySettings.load()
     return render(
         request,
         "core/game.html",
         {
-            "security_settings": security_settings,
             "submit_result_url": "/api/results/",
             "leaderboard_url": "/leaderboard/",
         },

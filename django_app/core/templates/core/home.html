@@ -1,59 +1,59 @@
 {% extends 'core/base.html' %}
-{% block title %}Reaction Guard | Home{% endblock %}
+{% block title %}Reaction Guard | Главная{% endblock %}
 {% block content %}
 <section class="hero-grid">
     <div>
-        <p class="eyebrow">Secure mini game for DevOps coursework</p>
-        <h1>React fast, score points, and protect the application from malicious updates.</h1>
+        <p class="eyebrow">Безопасная мини-игра для курса по DevOps</p>
+        <h1>Реагируйте быстро, набирайте очки и защищайте приложение от вредоносных обновлений.</h1>
         <p class="lead">
-            The app combines a 60-second reaction game with a safe simulation of a compromised update channel.
-            It demonstrates application-side update verification, persistence, leaderboard ranking, and security logging.
+            Приложение сочетает 60-секундную игру на реакцию и безопасную симуляцию скомпрометированного канала обновлений.
+            Оно демонстрирует проверку обновлений на стороне приложения, сохранение данных, таблицу лидеров и журналирование событий безопасности.
         </p>
         <div class="cta-row">
-            <a class="button-link primary" href="{% url 'core:game' %}">Start game</a>
-            <a class="button-link secondary" href="{% url 'core:leaderboard' %}">View leaderboard</a>
+            <a class="button-link primary" href="{% url 'core:game' %}">Начать игру</a>
+            <a class="button-link secondary" href="{% url 'core:leaderboard' %}">Открыть таблицу лидеров</a>
         </div>
     </div>
     <aside class="hero-panel">
-        <h2>What is protected</h2>
+        <h2>Что защищается</h2>
         <ul class="feature-list">
-            <li>Hash verification before applying an update</li>
-            <li>Anti-rollback and policy checks on the application side</li>
-            <li>Alert logging on blocked update attempts</li>
-            <li>PostgreSQL results and Redis cache</li>
+            <li>Проверка hash перед применением обновления</li>
+            <li>Проверки anti-rollback и policy на стороне приложения</li>
+            <li>Запись тревог при заблокированных попытках обновления</li>
+            <li>Результаты в PostgreSQL и кэш Redis</li>
         </ul>
     </aside>
 </section>
 
 <section class="stats-grid">
     <article class="stat-card">
-        <span>Games</span>
+        <span>Игр</span>
         <strong>{{ stats.games|default:0 }}</strong>
     </article>
     <article class="stat-card">
-        <span>Players</span>
+        <span>Игроков</span>
         <strong>{{ stats.players|default:0 }}</strong>
     </article>
     <article class="stat-card">
-        <span>Average score</span>
+        <span>Средний счёт</span>
         <strong>{{ stats.avg_score|default:0|floatformat:1 }}</strong>
     </article>
 </section>
 
 <section>
     <div class="section-head">
-        <h2>Top runs</h2>
-        <a href="{% url 'core:leaderboard' %}">Open full leaderboard</a>
+        <h2>Лучшие попытки</h2>
+        <a href="{% url 'core:leaderboard' %}">Открыть полную таблицу лидеров</a>
     </div>
     <div class="table-card">
         <table>
             <thead>
                 <tr>
-                    <th>Player</th>
-                    <th>Score</th>
-                    <th>Accuracy</th>
-                    <th>Best streak</th>
-                    <th>Reaction</th>
+                    <th>Игрок</th>
+                    <th>Счёт</th>
+                    <th>Точность</th>
+                    <th>Лучшая серия</th>
+                    <th>Реакция</th>
                 </tr>
             </thead>
             <tbody>
@@ -66,7 +66,7 @@
                         <td>{{ result.average_reaction_ms|floatformat:0 }} ms</td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="5">No results yet. Be the first to play.</td></tr>
+                    <tr><td colspan="5">Результатов пока нет. Станьте первым игроком.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

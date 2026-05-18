@@ -39,7 +39,7 @@ class SecuritySettingsAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return not SecuritySettings.objects.exists()
 
-    @admin.action(description="Run update check")
+    @admin.action(description="Запустить проверку обновления")
     def run_update_check(self, request, queryset):
         for _settings in queryset:
             result = perform_update_check()

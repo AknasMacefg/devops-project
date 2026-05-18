@@ -102,6 +102,8 @@ spec:
               value: "8001"
             - name: UPDATER_PUBLIC_HOST
               value: updater-service:8001
+            - name: UPDATER_MTLS_ENABLED
+              valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_MTLS_ENABLED } }
             - name: UPDATER_RSA_PRIVATE_KEY_PATH
               valueFrom: { secretKeyRef: { name: app-secrets, key: UPDATER_RSA_PRIVATE_KEY_PATH } }
           ports:
@@ -138,6 +140,8 @@ spec:
           env:
             - name: SECURITY_PORT
               value: "8002"
+            - name: SECURITY_MTLS_ENABLED
+              valueFrom: { configMapKeyRef: { name: app-config, key: SECURITY_MTLS_ENABLED } }
             - name: UPDATE_SERVICE_URL
               valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_SERVICE_URL } }
             - name: SECURITY_RSA_PUBLIC_KEY_PATH
@@ -232,6 +236,8 @@ spec:
               value: "1"
             - name: DJANGO_ALLOWED_HOSTS
               value: "*"
+            - name: UPDATE_MTLS_ENABLED
+              valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_MTLS_ENABLED } }
             - name: POSTGRES_DB
               valueFrom: { configMapKeyRef: { name: app-config, key: POSTGRES_DB } }
             - name: POSTGRES_USER

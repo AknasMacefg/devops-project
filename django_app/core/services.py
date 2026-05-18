@@ -46,19 +46,40 @@ def _load_module_from_source(module_name: str, source: str):
     return module, module_path
 
 
+def _version_parts(value: str) -> list[int]:
+    parts = [int(item) for item in value.split(".") if item.isdigit()]
+    return parts or [0]
+
+
+def _compare_versions(a: str, b: str) -> int:
+    a_parts = _version_parts(a)
+    b_parts = _version_parts(b)
+    size = max(len(a_parts), len(b_parts))
+    a_norm = a_parts + [0] * (size - len(a_parts))
+    b_norm = b_parts + [0] * (size - len(b_parts))
+    if a_norm < b_norm:
+        return -1
+    if a_norm > b_norm:
+        return 1
+    return 0
+
+
 def perform_update_check() -> UpdateCheckResult:
     security_settings = SecuritySettings.load()
     mode = security_settings.update_channel
     security_service_url = getattr(settings, "UPDATE_SECURITY_SERVICE_URL", "http://security-service:8002").rstrip("/")
     evaluate_url = f"{security_service_url}/evaluate"
     updater_base_url = security_settings.updater_base_url
-    if updater_base_url.startswith("http://"):
+    mtls_enabled = getattr(settings, "UPDATE_MTLS_ENABLED", False)
+    if mtls_enabled and updater_base_url.startswith("http://"):
         updater_base_url = "https://" + updater_base_url.removeprefix("http://")
+    if not mtls_enabled and updater_base_url.startswith("https://"):
+        updater_base_url = "http://" + updater_base_url.removeprefix("https://")
 
     record_security_event(
         SecurityEvent.EVENT_UPDATE_CHECK,
         SecurityEvent.SEVERITY_LOW,
-        "Update check started",
+        "Проверка обновления начата",
         {"mode": mode, "security_service_url": evaluate_url},
     )
 
@@ -83,7 +104,7 @@ def perform_update_check() -> UpdateCheckResult:
         with request.urlopen(req, timeout=15) as response:
             security_decision = json.loads(response.read().decode("utf-8"))
     except (error.URLError, TimeoutError, KeyError, json.JSONDecodeError) as exc:
-        message = f"Update check failed: {exc}"
+        message = f"Проверка обновления не удалась: {exc}"
         security_settings.last_update_status = SecuritySettings.STATUS_ERROR
         security_settings.last_update_message = message
         security_settings.last_update_check_at = timezone.now()
@@ -126,7 +147,7 @@ def perform_update_check() -> UpdateCheckResult:
             record_security_event(
                 SecurityEvent.EVENT_ALERT,
                 SecurityEvent.SEVERITY_CRITICAL,
-                "ALERT: supply chain compromise detected",
+                "ТРЕВОГА: обнаружена компрометация цепочки поставки",
                 {"mode": mode, "decision": security_decision},
             )
         return UpdateCheckResult(status=status, message=message, details=details)
@@ -138,7 +159,7 @@ def perform_update_check() -> UpdateCheckResult:
     module_path = runtime_dir / f"{module_name}.py"
     module_path.write_text(module_source, encoding="utf-8")
 
-    message = f"Applied update {manifest.get('name', 'unknown')}"
+    message = f"Обновление применено: {manifest.get('name', 'unknown')}"
     security_settings.last_update_status = SecuritySettings.STATUS_APPLIED
     security_settings.last_update_message = message
     security_settings.last_update_check_at = timezone.now()

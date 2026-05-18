@@ -1,11 +1,11 @@
 {% extends 'core/base.html' %}
-{% block title %}Reaction Guard | Sign up{% endblock %}
+{% block title %}Reaction Guard | Регистрация{% endblock %}
 {% block content %}
 <section class="auth-card">
     <div>
-        <p class="eyebrow">Create access</p>
-        <h1>Sign up</h1>
-        <p class="lead">Register once and your game results will be stored in PostgreSQL.</p>
+        <p class="eyebrow">Создайте доступ</p>
+        <h1>Регистрация</h1>
+        <p class="lead">Зарегистрируйтесь один раз, и результаты игры будут сохраняться в PostgreSQL.</p>
     </div>
     <form method="post" class="auth-form">
         {% csrf_token %}
@@ -14,7 +14,7 @@
         <label>{{ form.email.label_tag }}{{ form.email }}</label>
         <label>{{ form.password1.label_tag }}{{ form.password1 }}</label>
         <label>{{ form.password2.label_tag }}{{ form.password2 }}</label>
-        <button type="submit" class="button-link primary full-width">Create account</button>
+        <button type="submit" class="button-link primary full-width">Создать аккаунт</button>
     </form>
 </section>
 {% endblock %}

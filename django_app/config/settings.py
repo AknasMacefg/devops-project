@@ -43,7 +43,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "core.context_processors.security_status",
             ],
         },
     },
@@ -77,7 +76,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
@@ -95,6 +94,7 @@ LOGIN_REDIRECT_URL = "core:game"
 LOGOUT_REDIRECT_URL = "core:home"
 
 UPDATE_SECURITY_SERVICE_URL = os.getenv("UPDATE_SECURITY_SERVICE_URL", "http://security-service:8002")
+UPDATE_MTLS_ENABLED = os.getenv("UPDATE_MTLS_ENABLED", "0") == "1"
 UPDATE_RUNTIME_DIR = BASE_DIR / "runtime"
 UPDATE_POLICY_ALLOWED_MODULES = [
     item.strip() for item in os.getenv("UPDATE_POLICY_ALLOWED_MODULES", "safe_update").split(",") if item.strip()

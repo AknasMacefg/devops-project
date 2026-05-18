@@ -31,10 +31,10 @@ class SecuritySettings(models.Model):
     UPDATE_CHANNEL_INVALID_MANIFEST = "invalid_manifest"
     UPDATE_CHANNEL_MALICIOUS_VALID = "malicious_valid"
     UPDATE_CHANNEL_CHOICES = [
-        (UPDATE_CHANNEL_SAFE, "Safe update"),
-        (UPDATE_CHANNEL_COMPROMISED, "Compromised update"),
-        (UPDATE_CHANNEL_INVALID_MANIFEST, "Invalid manifest"),
-        (UPDATE_CHANNEL_MALICIOUS_VALID, "Valid manifest, malicious code"),
+        (UPDATE_CHANNEL_SAFE, "Безопасное обновление"),
+        (UPDATE_CHANNEL_COMPROMISED, "Скомпрометированное обновление"),
+        (UPDATE_CHANNEL_INVALID_MANIFEST, "Неверный манифест"),
+        (UPDATE_CHANNEL_MALICIOUS_VALID, "Корректный манифест, вредоносный код"),
     ]
 
     STATUS_IDLE = "idle"
@@ -43,11 +43,11 @@ class SecuritySettings(models.Model):
     STATUS_ALERT = "alert"
     STATUS_ERROR = "error"
     STATUS_CHOICES = [
-        (STATUS_IDLE, "Idle"),
-        (STATUS_APPLIED, "Applied"),
-        (STATUS_BLOCKED, "Blocked"),
-        (STATUS_ALERT, "Alert"),
-        (STATUS_ERROR, "Error"),
+        (STATUS_IDLE, "Ожидание"),
+        (STATUS_APPLIED, "Применено"),
+        (STATUS_BLOCKED, "Заблокировано"),
+        (STATUS_ALERT, "Тревога"),
+        (STATUS_ERROR, "Ошибка"),
     ]
 
     protection_enabled = models.BooleanField(default=True)
@@ -61,11 +61,11 @@ class SecuritySettings(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Security settings"
-        verbose_name_plural = "Security settings"
+        verbose_name = "Параметры защиты"
+        verbose_name_plural = "Параметры защиты"
 
     def __str__(self) -> str:
-        return "Security settings"
+        return "Параметры защиты"
 
     @classmethod
     def load(cls):
@@ -81,11 +81,11 @@ class SecurityEvent(models.Model):
     EVENT_WARNING = "warning"
 
     EVENT_TYPE_CHOICES = [
-        (EVENT_UPDATE_CHECK, "Update check"),
-        (EVENT_UPDATE_APPLIED, "Update applied"),
-        (EVENT_UPDATE_BLOCKED, "Update blocked"),
-        (EVENT_ALERT, "Alert"),
-        (EVENT_WARNING, "Warning"),
+        (EVENT_UPDATE_CHECK, "Проверка обновления"),
+        (EVENT_UPDATE_APPLIED, "Обновление применено"),
+        (EVENT_UPDATE_BLOCKED, "Обновление заблокировано"),
+        (EVENT_ALERT, "Тревога"),
+        (EVENT_WARNING, "Предупреждение"),
     ]
 
     SEVERITY_LOW = "low"
@@ -94,10 +94,10 @@ class SecurityEvent(models.Model):
     SEVERITY_CRITICAL = "critical"
 
     SEVERITY_CHOICES = [
-        (SEVERITY_LOW, "Low"),
-        (SEVERITY_MEDIUM, "Medium"),
-        (SEVERITY_HIGH, "High"),
-        (SEVERITY_CRITICAL, "Critical"),
+        (SEVERITY_LOW, "Низкая"),
+        (SEVERITY_MEDIUM, "Средняя"),
+        (SEVERITY_HIGH, "Высокая"),
+        (SEVERITY_CRITICAL, "Критическая"),
     ]
 
     event_type = models.CharField(max_length=32, choices=EVENT_TYPE_CHOICES)

@@ -1,10 +1,15 @@
+version: "3.9"
+
+x-postgres-env: &postgres-env
+  POSTGRES_DB: ${POSTGRES_DB:-reaction_game}
+  POSTGRES_USER: ${POSTGRES_USER:-reaction_game}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reaction_game}
+
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: demo
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      <<: *postgres-env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -28,6 +33,7 @@ services:
     environment:
       UPDATER_PUBLIC_HOST: ${UPDATER_PUBLIC_HOST:-updater-service:8001}
       UPDATER_PORT: 8001
+      UPDATER_MTLS_ENABLED: ${MTLS_ENABLED:-0}
       UPDATER_RSA_PRIVATE_KEY_PATH: ${UPDATER_RSA_PRIVATE_KEY_PATH:-/keys/updater_private.pem}
       UPDATER_TLS_CERT_FILE: ${UPDATER_TLS_CERT_FILE:-/certs/updater/updater.crt}
       UPDATER_TLS_KEY_FILE: ${UPDATER_TLS_KEY_FILE:-/certs/updater/updater.key}
@@ -46,7 +52,8 @@ services:
       context: ./security_service
     environment:
       SECURITY_PORT: 8002
-      UPDATE_SERVICE_URL: https://updater-service:8001
+      SECURITY_MTLS_ENABLED: ${MTLS_ENABLED:-0}
+      UPDATE_SERVICE_URL: ${UPDATE_SERVICE_URL:-http://updater-service:8001}
       SECURITY_RSA_PUBLIC_KEY_PATH: ${SECURITY_RSA_PUBLIC_KEY_PATH:-/keys/updater_public.pem}
       SECURITY_RSA_VERIFY_REQUIRED: ${SECURITY_RSA_VERIFY_REQUIRED:-0}
       STRICT_TIME_BOMB_CHECK: ${STRICT_TIME_BOMB_CHECK:-0}
@@ -84,13 +91,12 @@ services:
       DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost,http://127.0.0.1}
-      POSTGRES_DB: demo
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      UPDATE_MTLS_ENABLED: ${MTLS_ENABLED:-0}
+      <<: *postgres-env
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_URL: redis://redis:6379/1
-      UPDATE_SECURITY_SERVICE_URL: http://security-service:8002
+      UPDATE_SECURITY_SERVICE_URL: ${UPDATE_SECURITY_SERVICE_URL:-http://security-service:8002}
       UPDATE_POLICY_ALLOWED_MODULES: ${UPDATE_POLICY_ALLOWED_MODULES:-safe_update}
       UPDATE_POLICY_ALLOW_COMPROMISED: ${UPDATE_POLICY_ALLOW_COMPROMISED:-0}
     volumes:

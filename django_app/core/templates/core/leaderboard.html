@@ -1,12 +1,12 @@
 {% extends 'core/base.html' %}
-{% block title %}Reaction Guard | Leaderboard{% endblock %}
+{% block title %}Reaction Guard | Таблица лидеров{% endblock %}
 {% block content %}
 <div class="section-head">
     <div>
-        <p class="eyebrow">Best runs</p>
-        <h1>Leaderboard</h1>
+        <p class="eyebrow">Лучшие попытки</p>
+        <h1>Таблица лидеров</h1>
     </div>
-    <a class="button-link primary" href="{% url 'core:game' %}">Play again</a>
+    <a class="button-link primary" href="{% url 'core:game' %}">Сыграть ещё раз</a>
 </div>
 
 <div class="table-card">
@@ -14,14 +14,14 @@
         <thead>
             <tr>
                 <th>#</th>
-                <th>Player</th>
-                <th>Score</th>
-                <th>Hits</th>
-                <th>Misses</th>
-                <th>Accuracy</th>
-                <th>Best streak</th>
-                <th>Reaction</th>
-                <th>Played at</th>
+                <th>Игрок</th>
+                <th>Счёт</th>
+                <th>Попадания</th>
+                <th>Промахи</th>
+                <th>Точность</th>
+                <th>Лучшая серия</th>
+                <th>Реакция</th>
+                <th>Сыграно</th>
             </tr>
         </thead>
         <tbody>
@@ -38,7 +38,7 @@
                     <td>{{ result.created_at|date:"Y-m-d H:i" }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="9">No results yet.</td></tr>
+                <tr><td colspan="9">Результатов пока нет.</td></tr>
             {% endfor %}
         </tbody>
     </table>

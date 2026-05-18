@@ -16,6 +16,7 @@ COMPROMISED_MODULE = BASE_DIR / "compromised_update.py"
 APP_HOST = os.getenv("UPDATER_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("UPDATER_PORT", "8001"))
 RSA_PRIVATE_KEY_PATH = os.getenv("UPDATER_RSA_PRIVATE_KEY_PATH", "")
+MTLS_ENABLED = os.getenv("UPDATER_MTLS_ENABLED", "0") == "1"
 TLS_CERT_FILE = os.getenv("UPDATER_TLS_CERT_FILE", "")
 TLS_KEY_FILE = os.getenv("UPDATER_TLS_KEY_FILE", "")
 TLS_CA_FILE = os.getenv("UPDATER_TLS_CA_FILE", "")
@@ -96,8 +97,10 @@ def package(module_name: str):
 
 
 def _build_tls_context() -> ssl.SSLContext | None:
-    if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
+    if not MTLS_ENABLED:
         return None
+    if not (TLS_CERT_FILE and TLS_KEY_FILE and TLS_CA_FILE):
+        raise RuntimeError("mTLS enabled, but certificate paths are not configured")
 
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(certfile=TLS_CERT_FILE, keyfile=TLS_KEY_FILE)

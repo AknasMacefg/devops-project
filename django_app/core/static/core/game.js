@@ -154,9 +154,9 @@
         clearTimeout(state.spawnTimeout);
         clearActiveCircle();
         arenaEmpty.style.display = "grid";
-        arenaEmpty.textContent = "Round finished. Saving your result...";
+        arenaEmpty.textContent = "Раунд завершён. Сохраняем результат...";
         startButton.disabled = false;
-        startButton.textContent = "Play again";
+        startButton.textContent = "Сыграть ещё раз";
         renderSummary();
         submitResult();
     }
@@ -168,12 +168,12 @@
             ? (state.reactionTimes.reduce((sum, value) => sum + value, 0) / state.reactionTimes.length).toFixed(0)
             : "0";
         summaryBox.innerHTML = `
-            <strong>Final score:</strong> ${state.score}<br>
-            <strong>Successful clicks:</strong> ${state.hits}<br>
-            <strong>Misses:</strong> ${state.misses}<br>
-            <strong>Accuracy:</strong> ${accuracy}%<br>
-            <strong>Average reaction:</strong> ${averageReaction} ms<br>
-            <strong>Best streak:</strong> ${state.bestStreak}<br>
+            <strong>Итоговый счёт:</strong> ${state.score}<br>
+            <strong>Успешные нажатия:</strong> ${state.hits}<br>
+            <strong>Промахи:</strong> ${state.misses}<br>
+            <strong>Точность:</strong> ${accuracy}%<br>
+            <strong>Средняя реакция:</strong> ${averageReaction} мс<br>
+            <strong>Лучшая серия:</strong> ${state.bestStreak}<br>
             ${extraMessage ? `<span>${extraMessage}</span>` : ""}
         `;
     }
@@ -201,14 +201,14 @@
             });
 
             if (!response.ok) {
-                throw new Error(`Save failed: ${response.status}`);
+                throw new Error(`Сохранение не удалось: ${response.status}`);
             }
 
             const data = await response.json();
-            renderSummary(`Result saved. <a href="${leaderboardUrl}">Open leaderboard</a>.`);
-            summaryBox.insertAdjacentHTML("beforeend", `<br><strong>Server result ID:</strong> ${data.result_id}`);
+            renderSummary(`Результат сохранён. <a href="${leaderboardUrl}">Открыть таблицу лидеров</a>.`);
+            summaryBox.insertAdjacentHTML("beforeend", `<br><strong>ID результата на сервере:</strong> ${data.result_id}`);
         } catch (error) {
-            renderSummary(`Result not saved yet. ${error.message}`);
+            renderSummary(`Результат пока не сохранён. ${error.message}`);
         }
     }
 
@@ -227,7 +227,7 @@
         clearActiveCircle();
         clearArenaTargets();
         arenaEmpty.style.display = "none";
-        summaryBox.textContent = "Round in progress. Keep clicking targets.";
+        summaryBox.textContent = "Раунд идёт. Продолжайте нажимать по целям.";
         updateHud();
     }
 
@@ -237,7 +237,7 @@
         }
         resetState();
         startButton.disabled = true;
-        startButton.textContent = "Running...";
+        startButton.textContent = "Идёт раунд...";
 
         spawnCircle();
         state.tickInterval = setInterval(() => {
