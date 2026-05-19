@@ -12,5 +12,5 @@ def apply_update(context):
         "alert",
         "critical",
         "Имитированная утечка учётных данных записана во временный файл",
-        {"module": "compromised_update", "leak_file": str(leak_file)},
+        {"module": "bad_code", "leak_file": str(leak_file)},
     )

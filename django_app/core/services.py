@@ -90,7 +90,6 @@ def perform_update_check() -> UpdateCheckResult:
                 "update_service_url": updater_base_url,
                 "protection_enabled": security_settings.protection_enabled,
                 "allowed_modules": getattr(settings, "UPDATE_POLICY_ALLOWED_MODULES", ["safe_update"]),
-                "allow_compromised": getattr(settings, "UPDATE_POLICY_ALLOW_COMPROMISED", False),
                 "min_allowed_update_version": security_settings.min_allowed_update_version,
                 "last_applied_update_version": security_settings.last_applied_update_version,
             }

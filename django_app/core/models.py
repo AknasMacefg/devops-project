@@ -29,14 +29,12 @@ class GameResult(models.Model):
 
 class SecuritySettings(models.Model):
     UPDATE_CHANNEL_SAFE = "safe"
-    UPDATE_CHANNEL_COMPROMISED = "compromised"
     UPDATE_CHANNEL_INVALID_MANIFEST = "invalid_manifest"
-    UPDATE_CHANNEL_MALICIOUS_VALID = "malicious_valid"
+    UPDATE_CHANNEL_BAD_CODE = "bad_code"
     UPDATE_CHANNEL_CHOICES = [
         (UPDATE_CHANNEL_SAFE, "Безопасное обновление"),
-        (UPDATE_CHANNEL_COMPROMISED, "Скомпрометированное обновление"),
         (UPDATE_CHANNEL_INVALID_MANIFEST, "Неверный манифест"),
-        (UPDATE_CHANNEL_MALICIOUS_VALID, "Корректный манифест, вредоносный код"),
+        (UPDATE_CHANNEL_BAD_CODE, "Неприемлемый код"),
     ]
 
     STATUS_IDLE = "idle"

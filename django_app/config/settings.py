@@ -99,4 +99,3 @@ UPDATE_RUNTIME_DIR = BASE_DIR / "runtime"
 UPDATE_POLICY_ALLOWED_MODULES = [
     item.strip() for item in os.getenv("UPDATE_POLICY_ALLOWED_MODULES", "safe_update").split(",") if item.strip()
 ]
-UPDATE_POLICY_ALLOW_COMPROMISED = os.getenv("UPDATE_POLICY_ALLOW_COMPROMISED", "0") == "1"

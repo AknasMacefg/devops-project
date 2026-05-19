@@ -1,11 +1,11 @@
 # Reaction Game DevSecOps MVP
 
-Учебный MVP на Django для демонстрации DevOps и DevSecOps-подхода: мини-игра на реакцию, PostgreSQL, Redis, nginx, `updater-service`, `security-service` и изолированный `worker` для динамического анализа обновлений. По умолчанию сервисы работают по HTTP, а mTLS включается только явно через переменные окружения.
+Учебный MVP на Django для демонстрации DevOps и DevSecOps-подхода: мини-игра на реакцию, PostgreSQL, Redis, nginx, `updater-service` для симуляции доверенного источника обновлений, `security-service` и изолированный `worker` для динамического анализа обновлений. По умолчанию сервисы работают по HTTP и без проверки подписей, mTLS и RSA включается только явно через переменные окружения.
 
 ## Архитектура
 
 - `django-app` — веб-приложение Django с регистрацией, входом, игрой, результатами и админкой.
-- `updater-service` — тренировочный сервер обновлений, поддерживает режимы `safe`, `invalid_manifest`, `malicious_valid` и legacy `compromised`, подписывает манифест RSA-ключом и при включённом mTLS обслуживается по HTTPS.
+- `updater-service` — тренировочный сервер обновлений, поддерживает режимы `safe`, `invalid_manifest`, `bad_code`, подписывает манифест RSA-ключом и при включённом mTLS обслуживается по HTTPS.
 - `security-service` — валидатор обновлений: загружает манифест и пакет, при включённой защите выполняет статические проверки (hash, policy, версия, RSA, time-bomb) и передаёт артефакт в песочницу.
 - `worker` — песочница динамического анализа: запускает модуль в ограниченном subprocess и возвращает `pass` или `fail`.
 - `postgres` — хранение результатов игры, событий безопасности и настроек защиты.
@@ -19,7 +19,7 @@
 3. Если `protection_enabled=false`, `security-service` пропускает проверки и песочницу, сразу возвращает `approved`.
 4. Если `protection_enabled=true`, выполняются статические проверки в `security-service`:
 - SHA-256 целостность;
-- policy-check, включая allowlist модулей и запрет compromised-канала;
+- policy-check, включая allowlist модулей;
 - проверка минимально допустимой версии;
 - RSA-подпись манифеста, если она включена;
 - детект потенциальных time-bomb паттернов, если он включён.
@@ -32,7 +32,7 @@
 
 - `safe` — хороший модуль и корректный манифест.
 - `invalid_manifest` — отдаётся вредоносный модуль с неверным hash в манифесте. Обновление блокируется на статической проверке целостности.
-- `malicious_valid` — манифест корректный, но код вредоносный. Статические проверки могут пройти, блокировка происходит на этапе динамической проверки в `worker`.
+- `bad_code` — манифест корректный, но код содержит вредоносные действия. Статические проверки могут пройти, блокировка происходит на этапе динамической проверки в `worker`.
 
 ## Функционал игры
 
@@ -64,7 +64,7 @@ docker compose exec django-app python manage.py createsuperuser
 
 5. В Django admin:
 - включайте или выключайте защиту;
-- меняйте `update_channel` между `safe`, `invalid_manifest`, `malicious_valid` и legacy `compromised`;
+- меняйте `update_channel` между `safe`, `invalid_manifest`, `bad_code`;
 - запускайте `Запустить проверку обновления`;
 - проверяйте разделы `События безопасности` и `Результаты игр`.
 
@@ -164,19 +164,6 @@ kubectl apply -f k8s/networkpolicies.yaml
 
 Перед применением соберите и запушьте образы, которые используются в `k8s/apps.yaml`.
 
-Если `kubectl apply` жалуется на OpenAPI или validation, обычно это проблема кластера или доступа к API, а не YAML. В таком случае используйте более устойчивый порядок:
-
-```bash
-kubectl create namespace devops-demo
-kubectl apply --server-side --validate=false -f k8s/configmap.yaml
-kubectl apply --server-side --validate=false -f k8s/secrets-template.yaml
-kubectl apply --server-side --validate=false -f k8s/storage.yaml
-kubectl apply --server-side --validate=false -f k8s/apps.yaml
-kubectl apply --server-side --validate=false -f k8s/networkpolicies.yaml
-```
-
-Если namespace уже существует, команда `kubectl create namespace devops-demo` вернёт ошибку `AlreadyExists` — это нормально.
-
 ## Полезные URL
 
 - `/` — домашняя страница
@@ -205,7 +192,7 @@ docker compose up --build
 - `Запустить проверку обновления` в Django admin;
 - убедитесь, что защита блокирует обновление на статическом этапе (hash mismatch) и появляются `update_blocked` или `alert`.
 
-4. Сценарий 3: корректный манифест, но вредоносный код (`malicious_valid`)
-- `http://localhost:8001/manifest?mode=malicious_valid` или HTTPS-вариант при включённом mTLS;
+4. Сценарий 3: корректный манифест, но вредоносный код (`bad_code`)
+- `http://localhost:8001/manifest?mode=bad_code` или HTTPS-вариант при включённом mTLS;
 - `Запустить проверку обновления` в Django admin;
 - убедитесь, что обновление блокируется в sandbox `worker`, после чего появляются `update_blocked` или `alert`.

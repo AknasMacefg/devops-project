@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("protection_enabled", models.BooleanField(default=True)),
-                ("update_channel", models.CharField(choices=[("safe", "Безопасное обновление"), ("compromised", "Скомпрометированное обновление")], default="safe", max_length=20)),
+                ("update_channel", models.CharField(choices=[("safe", "Безопасное обновление"), ("invalid_manifest", "Неверный манифест"), ("bad_code", "Неприемлемый код")], default="safe", max_length=20)),
                 ("updater_base_url", models.URLField(default="http://updater-service:8001")),
                 ("last_update_check_at", models.DateTimeField(blank=True, null=True)),
                 ("last_update_status", models.CharField(choices=[("idle", "Ожидание"), ("applied", "Применено"), ("blocked", "Заблокировано"), ("alert", "Тревога"), ("error", "Ошибка")], default="idle", max_length=20)),

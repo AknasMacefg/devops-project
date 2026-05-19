@@ -254,8 +254,6 @@ spec:
               valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_SECURITY_SERVICE_URL } }
             - name: UPDATE_POLICY_ALLOWED_MODULES
               valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_POLICY_ALLOWED_MODULES } }
-            - name: UPDATE_POLICY_ALLOW_COMPROMISED
-              valueFrom: { configMapKeyRef: { name: app-config, key: UPDATE_POLICY_ALLOW_COMPROMISED } }
           ports:
             - containerPort: 8000
 ---

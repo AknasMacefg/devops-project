@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 SAFE_MODULE = BASE_DIR / "safe_update.py"
-COMPROMISED_MODULE = BASE_DIR / "compromised_update.py"
+BAD_CODE_MODULE = BASE_DIR / "bad_code_module.py"
 APP_HOST = os.getenv("UPDATER_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("UPDATER_PORT", "8001"))
 RSA_PRIVATE_KEY_PATH = os.getenv("UPDATER_RSA_PRIVATE_KEY_PATH", "")
@@ -37,22 +37,17 @@ def _load_module_source(mode: str) -> tuple[str, str, str]:
     """
     Load module source based on mode:
     - safe: safe_update.py, version 1.0.0
-    - compromised: compromised_update.py, version 2.0.0, mode=compromised
-    - invalid_manifest: compromised_update.py, version 1.0.0 (will get wrong hash)
-    - malicious_valid: compromised_update.py named as safe_update, version 1.1.0
+    - invalid_manifest: bad_code module with wrong hash, version 1.0.0
+    - bad_code: bad_code module with correct hash, claimed as safe_update, version 1.1.0
     """
-    if mode == "compromised":
-        module_path = COMPROMISED_MODULE
-        module_name = "compromised_update"
-        version = "2.0.0"
-    elif mode == "invalid_manifest":
-        # Send compromised code with tampered manifest
-        module_path = COMPROMISED_MODULE
+    if mode == "invalid_manifest":
+        # Send bad code with tampered manifest hash
+        module_path = BAD_CODE_MODULE
         module_name = "safe_update"  # Claim it's safe to fool policy
         version = "1.0.0"
-    elif mode == "malicious_valid":
-        # Send compromised code with correct hash but claiming to be safe_update
-        module_path = COMPROMISED_MODULE
+    elif mode == "bad_code":
+        # Send bad code with correct hash but claiming to be safe_update
+        module_path = BAD_CODE_MODULE
         module_name = "safe_update"
         version = "1.1.0"
     else:  # safe or default
@@ -99,10 +94,9 @@ def manifest():
     rsa_signature = _sign_manifest(module_name, version, payload_hash, mode)
 
     # Determine which actual module file to serve
-    # For compromised and invalid_manifest, serve compromised_update.py
-    # For malicious_valid, serve compromised_update.py (but manifest claims it's safe_update)
-    if mode in {"compromised", "invalid_manifest", "malicious_valid"}:
-        package_module_name = "compromised_update"
+    # For invalid_manifest and bad_code, serve bad_code module
+    if mode in {"invalid_manifest", "bad_code"}:
+        package_module_name = "bad_code"
     else:
         package_module_name = "safe_update"
     
@@ -124,9 +118,9 @@ def manifest():
 
 @app.get("/packages/<module_name>.py")
 def package(module_name: str):
-    if module_name not in {"safe_update", "compromised_update"}:
+    if module_name not in {"safe_update", "bad_code"}:
         return jsonify({"error": "unknown module"}), 404
-    path = SAFE_MODULE if module_name == "safe_update" else COMPROMISED_MODULE
+    path = SAFE_MODULE if module_name == "safe_update" else BAD_CODE_MODULE
     return Response(path.read_text(encoding="utf-8"), mimetype="text/x-python")
 
 

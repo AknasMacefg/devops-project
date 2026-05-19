@@ -125,11 +125,10 @@ def _compare_versions(a: str, b: str) -> int:
     return 0
 
 
-def _evaluate_policy(manifest: dict, mode: str, allowed_modules: list[str], allow_compromised: bool, min_allowed_update_version: str, last_applied_update_version: str) -> tuple[bool, dict]:
+def _evaluate_policy(manifest: dict, mode: str, allowed_modules: list[str], min_allowed_update_version: str, last_applied_update_version: str) -> tuple[bool, dict]:
     module_name = manifest.get("name", "")
     details = {
         "allowed_modules": sorted(set(allowed_modules)),
-        "allow_compromised": allow_compromised,
         "module_name": module_name,
         "mode": mode,
         "version": manifest.get("version", "0.0.0"),
@@ -139,10 +138,6 @@ def _evaluate_policy(manifest: dict, mode: str, allowed_modules: list[str], allo
 
     if module_name not in set(allowed_modules):
         details["reason"] = "module_not_allowed"
-        return False, details
-
-    if mode == "compromised" and not allow_compromised:
-        details["reason"] = "compromised_channel_not_allowed"
         return False, details
 
     version = manifest.get("version", "0.0.0")
@@ -218,7 +213,6 @@ def evaluate():
     if not MTLS_ENABLED and update_service_url.startswith("https://"):
         update_service_url = "http://" + update_service_url.removeprefix("https://")
     allowed_modules = payload.get("allowed_modules", ["safe_update"])
-    allow_compromised = bool(payload.get("allow_compromised", False))
     min_allowed_update_version = payload.get("min_allowed_update_version", "0.0.0")
     last_applied_update_version = payload.get("last_applied_update_version", "0.0.0")
     protection_enabled = bool(payload.get("protection_enabled", True))
@@ -262,7 +256,6 @@ def evaluate():
         manifest,
         mode,
         allowed_modules,
-        allow_compromised,
         min_allowed_update_version,
         last_applied_update_version,
     )
