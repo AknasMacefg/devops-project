@@ -67,7 +67,7 @@ exec(code, ns)
 if 'apply_update' in ns:
     try:
         leak_file = Path('/artifacts/simulated_leak.txt')
-        result = ns['apply_update']({{'logger': logger, 'record_event': record_event, 'manifest': {manifest_json}, 'runtime_dir': '/artifacts', 'leak_file': str(leak_file)}})
+        result = ns['apply_update']({{'logger': logger, 'record_event': record_event, 'manifest': json.loads({json.dumps(manifest_json)}), 'runtime_dir': '/artifacts', 'leak_file': str(leak_file)}})
         if leak_file.exists():
             print(json.dumps({{'status': 'fail', 'message': 'leak_file_created'}}))
         else:
@@ -174,7 +174,7 @@ if 'apply_update' in ns:
     print('[runner] found apply_update, calling it...', flush=True)
     try:
         # Provide the same shape of context that application code expects
-        ctx = {{'logger': logger, 'record_event': record_event, 'manifest': {manifest_json}, 'runtime_dir': '/artifacts', 'leak_file': '/artifacts/simulated_leak.txt', 'module_path': {json.dumps(module_path)}}}
+        ctx = {{'logger': logger, 'record_event': record_event, 'manifest': json.loads({json.dumps(manifest_json)}), 'runtime_dir': '/artifacts', 'leak_file': '/artifacts/simulated_leak.txt', 'module_path': {json.dumps(module_path)}}}
         print(f'[runner] context keys={{list(ctx.keys())}}', flush=True)
         result = ns['apply_update'](ctx)
         print(f'[runner] apply_update returned: {{result}}', flush=True)
